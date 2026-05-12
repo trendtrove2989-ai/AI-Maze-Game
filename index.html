@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intelligent Multi-Agent Maze Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Orbit&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root {
+  --bg-color: #e0e5ec;
+  --text-color: #1a1a1a;
+  --glass-bg: rgba(255, 255, 255, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  --accent: #25b09b;
+}
+[data-theme="dark"] {
+  --bg-color: #0f172a;
+  --text-color: #e2e8f0;
+  --glass-bg: rgba(15, 23, 42, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --accent: #38bdf8;
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  color: var(--text-color);
+  font-family: 'Orbit', sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  perspective: 1200px;
+}
+#three-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  filter: blur(4px);
+}
+#shutter {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, rgba(119, 87, 175, 0.4) 0%, rgba(119, 87, 175, 0.1) 100%);
+  backdrop-filter: blur(35px);
+  -webkit-backdrop-filter: blur(35px);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.4);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform-origin: top;
+}
+.loader {
+  width: 50px;
+  height: 50px;
+  position: relative;
+  --c: no-repeat linear-gradient(#01004e 0 0);
+  background: var(--c) center/100% 10px, var(--c) center/10px 100%;
+}
+.loader:before {
+  content:'';
+  position: absolute;
+  inset: 0;
+  background: var(--c) 0 0, var(--c) 100% 0, var(--c) 0 100%, var(--c) 100% 100%;
+  background-size: 15.5px 15.5px;
+  animation: l16 1.5s infinite cubic-bezier(0.3,1,0,1);
+}
+@keyframes l16 {
+  33%  {inset:-10px;transform: rotate(0deg)}
+  66%  {inset:-10px;transform: rotate(90deg)}
+  100% {inset:0    ;transform: rotate(90deg)}
+}
+.top-left-controls {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  z-index: 20;
+}
+.github-icon {
+  color: var(--text-color);
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+.github-icon:hover {
+  transform: scale(1.2);
+}
+.top-controls {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  display: flex;
+  gap: 20px;
+  z-index: 20;
+}
+.icon-btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  font-size: 1.5rem;
+  color: var(--text-color);
+  box-shadow: var(--glass-shadow);
+  transition: all 0.3s ease;
+}
+.icon-btn:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.5);
+}
+#main-ui {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  padding: 80px;
+  opacity: 0;
+  justify-content: space-between;
+  align-items: center;
+}
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  width: 35%;
+  z-index: 10;
+}
+.glitch-wrapper {
+  font-family: 'Anton', sans-serif;
+  font-size: 7rem;
+  text-transform: uppercase;
+  position: relative;
+  color: var(--text-color);
+  margin-bottom: 20px;
+  line-height: 1;
+}
+.glitch {
+  position: relative;
+  display: inline-block;
+}
+.glitching::before, .glitching::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  opacity: 0.8;
+}
+.glitching::before {
+  left: 4px;
+  text-shadow: -4px 0 red;
+  clip: rect(44px, 9999px, 56px, 0);
+  animation: glitch-anim-real 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+}
+.glitching::after {
+  left: -4px;
+  text-shadow: -4px 0 blue;
+  clip: rect(44px, 9999px, 56px, 0);
+  animation: glitch-anim-real2 0.3s cubic-bezier(.25, .46, .45, .94) both infinite reverse;
+}
+@keyframes glitch-anim-real {
+  0% { clip: rect(12px, 9999px, 59px, 0); transform: skew(0.3deg); }
+  20% { clip: rect(65px, 9999px, 98px, 0); transform: skew(0.1deg); }
+  40% { clip: rect(43px, 9999px, 12px, 0); transform: skew(0.8deg); }
+  60% { clip: rect(89px, 9999px, 34px, 0); transform: skew(0.2deg); }
+  80% { clip: rect(22px, 9999px, 78px, 0); transform: skew(0.6deg); }
+  100% { clip: rect(54px, 9999px, 23px, 0); transform: skew(0.4deg); }
+}
+@keyframes glitch-anim-real2 {
+  0% { clip: rect(34px, 9999px, 87px, 0); transform: translate(-2px); }
+  20% { clip: rect(12px, 9999px, 54px, 0); transform: translate(2px); }
+  40% { clip: rect(76px, 9999px, 23px, 0); transform: translate(-2px); }
+  60% { clip: rect(45px, 9999px, 98px, 0); transform: translate(2px); }
+  80% { clip: rect(89px, 9999px, 12px, 0); transform: translate(-2px); }
+  100% { clip: rect(23px, 9999px, 67px, 0); transform: translate(2px); }
+}
+.btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-color);
+  padding: 20px 40px;
+  border-radius: 16px;
+  font-size: 2rem;
+  font-family: 'Orbit', sans-serif;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  backdrop-filter: blur(15px);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: var(--glass-shadow);
+}
+.btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  transform: translateX(15px) scale(1.02);
+  border-color: var(--accent);
+}
+.scene {
+  width: 45%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  perspective: 1500px;
+  z-index: 10;
+}
+.board {
+  width: 600px;
+  height: 600px;
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  grid-template-rows: repeat(14, 1fr);
+  gap: 3px;
+  padding: 18px;
+  border-radius: 25px;
+  background: #1f2937;
+  border: 2px solid rgba(255,255,255,0.1);
+  transform-style: preserve-3d;
+  animation: rotateBoard 14s linear infinite;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+}
+@keyframes rotateBoard {
+  0% { transform: rotateX(60deg) rotateZ(0deg); }
+  100% { transform: rotateX(60deg) rotateZ(360deg); }
+}
+.cell {
+  background: #0f172a;
+  border-radius: 4px;
+  transition: 0.15s linear;
+}
+.wall { background: #475569; }
+.path-fill { background: #22c55e; }
+.path-retreat { background: #ef4444; }
+.start { background: #22c55e; }
+.end { background: #ef4444; }
+
+.popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  background: var(--glass-bg);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 50px;
+  z-index: 10000;
+  color: var(--text-color);
+  box-shadow: var(--glass-shadow);
+  min-width: 500px;
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.popup.active {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  pointer-events: all;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.popup h2 {
+  font-family: 'Anton', sans-serif;
+  font-size: 3rem;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+.popup p {
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+#game-container {
+  display: none;
+  position: absolute;
+  inset: 40px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border-radius: 30px;
+  border: 1px solid var(--glass-border);
+  z-index: 50;
+  box-shadow: var(--glass-shadow);
+}
+canvas#gameCanvas {
+  width: 100%;
+  height: 100%;
+  border-radius: 30px;
+}
+@media (max-width: 1024px) {
+  #main-ui {
+    flex-direction: column;
+    padding: 100px 20px 20px 20px;
+    justify-content: center;
+  }
+  .left-panel {
+    width: 100%;
+    align-items: center;
+    gap: 15px;
+  }
+  .glitch-wrapper {
+    font-size: 5rem;
+  }
+  .btn {
+    text-align: center;
+    width: 80%;
+  }
+  .scene {
+    width: 100%;
+    justify-content: center;
+    margin-top: 40px;
+  }
+  .board {
+    width: 350px;
+    height: 350px;
+  }
+}
+</style>
+</head>
+<body>
+
+<audio id="bg-audio" loop src="bg-music.mp3"></audio>
+<audio id="click-audio" src="https://assets.mixkit.co/active_storage/sfx/2569/2569-preview.mp3"></audio>
+<audio id="move-audio" src="move.mp3"></audio> 
+<audio id="win-audio" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
+<audio id="lose-audio" src="https://assets.mixkit.co/active_storage/sfx/2047/2047-preview.mp3"></audio>
+
+<div id="three-bg"></div>
+
+<div id="shutter">
+  <div class="loader"></div>
+</div>
+
+<div class="top-left-controls">
+  <div class="github-icon" onclick="playClick(); window.open('https://github.com', '_blank')">
+    <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor">
+      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+    </svg>
+  </div>
+</div>
+
+<div class="top-controls">
+  <div class="icon-btn" onclick="playClick(); toggleTheme()">🌙</div>
+  <div class="icon-btn" onclick="playClick(); openPopup('settings-popup')">⚙️</div>
+</div>
+
+<div id="main-ui">
+  <div class="left-panel">
+    <div class="glitch-wrapper">
+      <div class="glitch" id="glitch-text" data-text="MAZE AI">MAZE AI</div>
+    </div>
+    <button class="btn" onclick="playClick(); transitionTo('game')">PLAY GAME</button>
+    <button class="btn" onclick="playClick(); openPopup('how-to-play-popup')">HOW TO PLAY</button>
+    <button class="btn" onclick="playClick(); openPopup('history-popup')">HISTORY</button>
+  </div>
+
+  <div class="scene">
+    <div class="board" id="board"></div>
+  </div>
+</div>
+
+<div id="game-container">
+  <button class="btn" style="position:absolute; top:30px; left:30px; width:auto; font-size: 1.5rem; padding: 15px 30px; z-index: 100;" onclick="playClick(); transitionTo('home')">BACK TO HOME</button>
+  
+  <input type="file" id="mazeUploadGame" accept="image/*" style="display:none;" onchange="uploadAndPlayMaze(event)">
+  <button class="btn" id="uploadBtn" style="position:absolute; top:110px; left:30px; width:auto; font-size: 1.2rem; padding: 15px 30px; z-index: 100;" onclick="playClick(); document.getElementById('mazeUploadGame').click()">UPLOAD MAZE</button>
+
+  <canvas id="gameCanvas"></canvas>
+</div>
+
+<div class="popup" id="settings-popup">
+  <h2>Settings</h2>
+  <button class="btn" style="text-align:center;" onclick="playClick(); toggleTheme()">Toggle Theme</button>
+  <div class="slider-container">
+    <label>Game Music Volume</label>
+    <input type="range" id="bg-vol" min="0" max="1" step="0.1" value="0.5" oninput="updateVolumes()">
+  </div>
+  <div class="slider-container">
+    <label>UI Sound Volume</label>
+    <input type="range" id="sfx-vol" min="0" max="1" step="0.1" value="0.5" oninput="updateVolumes()">
+  </div>
+  <button class="btn" style="text-align:center;" onclick="playClick(); closePopup('settings-popup')">Close</button>
+</div>
+
+<div class="popup" id="how-to-play-popup">
+  <h2>How to Play</h2>
+  <p>1. Use Arrow Keys or WASD to navigate your character (Blue) through the maze.</p>
+  <p>2. Collect Coins (Yellow) to increase your score.</p>
+  <p>3. Avoid the Monster (Red) which tracks you using A* Search.</p>
+  <p>4. Compete against the AI Player (Green) making Minimax decisions.</p>
+  <p>5. Reach the Exits (Purple) after 15 turns to secure your victory.</p>
+  <p>6. Press 'R' to reset the board at any time.</p>
+  <button class="btn" style="text-align:center; margin-top:20px;" onclick="playClick(); closePopup('how-to-play-popup')">Understood</button>
+</div>
+
+<div class="popup" id="history-popup">
+  <h2>Game History</h2>
+  <p>No recent games played in this session. Start a match to record AI performance metrics and scores!</p>
+  <button class="btn" style="text-align:center; margin-top:20px;" onclick="playClick(); closePopup('history-popup')">Close</button>
+</div>
+
+<script>
+  let uploadedFile = null;
+
+function handleFileUpload(event) {
+  uploadedFile = event.target.files[0];
+  document.querySelector("button[onclick*='mazeUpload']").innerText = "MAZE UPLOADED!";
+}
+let thm = 'light';
+let scene, camera, renderer, cubes = [];
+const bgAudio = document.getElementById('bg-audio');
+const clickAudio = document.getElementById('click-audio');
+const moveAudio = document.getElementById('move-audio');
+const winAudio = document.getElementById('win-audio');
+const loseAudio = document.getElementById('lose-audio');
+
+bgAudio.volume = 0.4; // Slightly lower for light background music
+
+function playClick() {
+  clickAudio.currentTime = 0;
+  clickAudio.play().catch(()=>{});
+}
+
+function updateVolumes() {
+  const targetVol = parseFloat(document.getElementById('bg-vol').value) * 0.4;
+  if (!bgAudio.paused) bgAudio.volume = targetVol;
+  
+  const sfxVol = parseFloat(document.getElementById('sfx-vol').value);
+  clickAudio.volume = sfxVol;
+  moveAudio.volume = sfxVol;
+  winAudio.volume = sfxVol;
+  loseAudio.volume = sfxVol;
+}
+
+function playBgMusic() {
+  const targetVol = parseFloat(document.getElementById('bg-vol').value) * 0.4; 
+  bgAudio.volume = 0; // Start at 0 for smooth fade-in
+  let playPromise = bgAudio.play();
+  if (playPromise !== undefined) {
+    playPromise.then(() => {
+      // Smoothly fade volume up
+      gsap.to(bgAudio, {volume: targetVol, duration: 1.5, ease: "power2.inOut"});
+    }).catch(()=>{
+      // If browser blocks autoplay, wait for a click
+      document.body.addEventListener('click', () => { 
+        bgAudio.play(); 
+        gsap.to(bgAudio, {volume: targetVol, duration: 1.5});
+      }, { once: true });
+    });
+  }
+}
+function stopBgMusic() {
+  // Smoothly fade volume down to 0, then pause
+  gsap.to(bgAudio, {
+    volume: 0, 
+    duration: 1.5, 
+    ease: "power2.inOut", 
+    onComplete: () => bgAudio.pause()
+  });
+}
+function initThreeJS() {
+  const bg = document.getElementById('three-bg');
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xe0e5ec);
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  bg.appendChild(renderer.domElement);
+
+  const geom = new THREE.BoxGeometry(2, 2, 2);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x25b09b, wireframe: true, transparent: true, opacity: 0.25 });
+
+  for(let i=0; i<70; i++) {
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.x = (Math.random() - 0.5) * 40;
+    mesh.position.y = (Math.random() - 0.5) * 40;
+    mesh.position.z = (Math.random() - 0.5) * 40;
+    mesh.rotation.x = Math.random() * Math.PI;
+    mesh.rotation.y = Math.random() * Math.PI;
+    scene.add(mesh);
+    cubes.push(mesh);
+  }
+
+  const light = new THREE.PointLight(0xffffff, 1, 100);
+  light.position.set(10, 10, 10);
+  scene.add(light);
+  scene.add(new THREE.AmbientLight(0x404040));
+  camera.position.z = 15;
+
+  animateThreeJS();
+}
+
+function animateThreeJS() {
+  requestAnimationFrame(animateThreeJS);
+  cubes.forEach(c => {
+    c.rotation.x += 0.0015;
+    c.rotation.y += 0.002;
+  });
+  renderer.render(scene, camera);
+}
+
+function toggleTheme() {
+  thm = thm === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', thm);
+  scene.background.setHex(thm === 'light' ? 0xe0e5ec : 0x0f172a);
+  cubes.forEach(c => {
+    c.material.color.setHex(thm === 'light' ? 0x25b09b : 0x38bdf8);
+  });
+  if(gameState) renderGame(); // Update grid colors if in game
+}
+
+function openPopup(id) {
+  document.getElementById(id).classList.add('active');
+}
+function closePopup(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  
+  // Resize Canvas Logic
+  const cvs = document.getElementById('gameCanvas');
+  if(cvs && document.getElementById('game-container').style.display === 'block') {
+    cvs.width = cvs.clientWidth;
+    cvs.height = cvs.clientHeight;
+    renderGame();
+  }
+});
+
+initThreeJS();
+
+const glitchWords = ["MAZE AI", "MINIMAX", "A* SEARCH", "CSP COINS", "ALPHA BETA"];
+let wordIdx = 0;
+const gt = document.getElementById('glitch-text');
+
+setInterval(() => {
+  gt.classList.add('glitching');
+  setTimeout(() => {
+    wordIdx = (wordIdx + 1) % glitchWords.length;
+    gt.innerText = glitchWords[wordIdx];
+    gt.setAttribute('data-text', glitchWords[wordIdx]);
+  }, 150);
+  setTimeout(() => {
+    gt.classList.remove('glitching');
+  }, 300);
+}, 4000);
+
+const maze = [
+  "##############",
+  "#S#        ###",
+  "# # ######   #",
+  "# #      ### #",
+  "# ###### #   #",
+  "#      # # ###",
+  "###### # #   #",
+  "#    # # ### #",
+  "# ## # # #   #",
+  "# ## # # # ###",
+  "#    #   #   #",
+  "# ########## #",
+  "#           E#",
+  "##############"
+];
+
+const board = document.getElementById("board");
+const rows = maze.length;
+const cols = maze[0].length;
+const cells = [];
+let start = null;
+let end = null;
+
+for(let r = 0; r < rows; r++){
+  cells[r] = [];
+  for(let c = 0; c < cols; c++){
+    const cell = document.createElement("div");
+    cell.classList.add("cell");
+    const value = maze[r][c];
+    if(value === "#"){
+      cell.classList.add("wall");
+    }
+    if(value === "S"){
+      cell.classList.add("start");
+      start = [r,c];
+    }
+    if(value === "E"){
+      cell.classList.add("end");
+      end = [r,c];
+    }
+    board.appendChild(cell);
+    cells[r][c] = cell;
+  }
+}
+
+function findPath(){
+  const queue = [start];
+  const visited = new Set();
+  const parent = {};
+  visited.add(start.join(","));
+  const directions = [[1,0], [-1,0], [0,1], [0,-1]];
+  while(queue.length){
+    const [r,c] = queue.shift();
+    if(r === end[0] && c === end[1]){
+      break;
+    }
+    for(const [dr,dc] of directions){
+      const nr = r + dr;
+      const nc = c + dc;
+      if(nr >= 0 && nc >= 0 && nr < rows && nc < cols && maze[nr][nc] !== "#"){
+        const key = nr + "," + nc;
+        if(!visited.has(key)){
+          visited.add(key);
+          parent[key] = [r,c];
+          queue.push([nr,nc]);
+        }
+      }
+    }
+  }
+  const path = [];
+  let current = end;
+  while(current){
+    path.push(current);
+    if(!parent[current.join(",")]) break;
+    current = parent[current.join(",")];
+  }
+  path.reverse();
+  return path;
+}
+
+const finalPath = findPath();
+
+async function animateMaze(){
+  if(finalPath.length === 0) return;
+  while(true){
+    for(let i = 0; i < finalPath.length; i++){
+      const [r,c] = finalPath[i];
+      if(!cells[r][c].classList.contains("start") && !cells[r][c].classList.contains("end")){
+        cells[r][c].classList.add("path-fill");
+      }
+      await sleep(70);
+    }
+    await sleep(700);
+    for(let i = 0; i < finalPath.length; i++){
+      const [r,c] = finalPath[i];
+      if(!cells[r][c].classList.contains("start") && !cells[r][c].classList.contains("end")){
+        cells[r][c].classList.remove("path-fill");
+        cells[r][c].classList.add("path-retreat");
+      }
+      await sleep(45);
+    }
+    await sleep(400);
+    for(let i = 0; i < finalPath.length; i++){
+      const [r,c] = finalPath[i];
+      if(!cells[r][c].classList.contains("start") && !cells[r][c].classList.contains("end")){
+        cells[r][c].classList.remove("path-retreat");
+      }
+    }
+    await sleep(300);
+  }
+}
+
+function sleep(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+animateMaze();
+
+function transitionTo(target) {
+  if(target === 'game') {
+    stopBgMusic(); // Fade out music when starting game
+  } else if (target === 'home') {
+    playBgMusic(); // Fade music back in when returning to home
+  }
+  
+  gsap.to('#shutter', {y: 0, duration: 0.8, ease: "power3.inOut", onComplete: () => {
+    document.getElementById('main-ui').style.display = target === 'home' ? 'flex' : 'none';
+    document.getElementById('game-container').style.display = target === 'game' ? 'block' : 'none';
+    if(target === 'game') {
+      startGameLoop();
+    }
+    gsap.to('#shutter', {y: "-100%", duration: 0.8, ease: "power3.inOut", delay: 0.4});
+  }});
+}
+
+window.onload = () => {
+  setTimeout(() => {
+    document.getElementById('main-ui').style.opacity = 1;
+    gsap.to('#shutter', {y: "100%", duration: 1.5, ease: "power3.inOut", onComplete: () => {
+      playBgMusic(); // Start music on initial load
+    }});
+  }, 4500);
+};
+
+
+
+// ==========================================
+// GAME STATE MANAGEMENT (FRONTEND LINK)
+// ==========================================
+let gameState = null;
+const API_URL = "http://127.0.0.1:5000";
+
+async function fetchGameState() {
+  try {
+    const res = await fetch(`${API_URL}/api/state`);
+    gameState = await res.json();
+    renderGame();
+  } catch (error) {
+    drawError("Failed to connect to Python Backend. Ensure it's running.");
+  }
+}
+
+async function uploadAndPlayMaze(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const btn = document.getElementById('uploadBtn');
+  btn.innerText = "UPLOADING...";
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch(`${API_URL}/api/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    gameState = await res.json();
+    renderGame();
+    btn.innerText = "UPLOAD MAZE";
+    event.target.value = '';
+  } catch (error) {
+    btn.innerText = "UPLOAD FAILED";
+    setTimeout(() => btn.innerText = "UPLOAD MAZE", 2000);
+  }
+}
+
+async function sendMove(direction) {
+  if (!gameState || gameState.status !== 'playing') return;
+  try {
+    const res = await fetch(`${API_URL}/api/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ direction })
+    });
+    const newState = await res.json();
+    
+    // Check if the game just ended in this move
+    if (gameState.status === 'playing' && newState.status !== 'playing') {
+      bgAudio.pause(); // Stop background music
+      if (newState.status === 'win') {
+        winAudio.currentTime = 0;
+        winAudio.play().catch(()=>{});
+      } else if (newState.status === 'lose') {
+        loseAudio.currentTime = 0;
+        loseAudio.play().catch(()=>{});
+      }
+    }
+    
+    gameState = newState;
+    renderGame();
+  } catch (error) {
+    console.error("Failed to send move", error);
+  }
+}
+
+// ==========================================
+// PERFECTED RESET & KEYDOWN LOGIC
+// ==========================================
+
+async function resetGame() {
+  if (!gameState) return;
+
+  try {
+    // Change this part in your resetGame() function:
+    const res = await fetch(`${API_URL}/api/reset`, { 
+      method: 'GET', // <--- CHANGED FROM 'POST' TO 'GET'
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    if (!res.ok) {
+      throw new Error(`Server Error: ${res.status}`);
+    }
+
+    // Update frontend with the fresh, restarted board
+    gameState = await res.json();
+    
+    // Ensure music stays completely silent during gameplay
+    bgAudio.pause(); 
+    
+    // Re-render the fresh board with emojis
+    renderGame();
+    
+  } catch (error) {
+    console.error("Failed to reset game:", error);
+    drawError("BACKEND OFFLINE: Could not reset game.");
+  }
+}
+
+
+
+function startGameLoop() {
+  const cvs = document.getElementById('gameCanvas');
+  cvs.width = cvs.clientWidth;
+  cvs.height = cvs.clientHeight;
+  fetchGameState();
+}
+
+function drawError(msg) {
+  const cvs = document.getElementById('gameCanvas');
+  const ctx = cvs.getContext('2d');
+  ctx.clearRect(0, 0, cvs.width, cvs.height);
+  ctx.fillStyle = thm === 'dark' ? '#38bdf8' : '#ef4444';
+  ctx.font = '30px Orbit';
+  ctx.textAlign = 'center';
+  ctx.fillText(msg, cvs.width/2, cvs.height/2);
+}
+
+function renderGame() {
+  if (!gameState) return;
+  
+  const cvs = document.getElementById('gameCanvas');
+  const ctx = cvs.getContext('2d');
+  ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+  const grid = gameState.grid;
+  const rows = grid.length;
+  const cols = grid[0].length;
+  
+  const padding = 100;
+  const cs = Math.floor(Math.min((cvs.width - 40) / cols, (cvs.height - padding) / rows));
+  const offsetX = (cvs.width - (cols * cs)) / 2;
+  const offsetY = ((cvs.height - padding - (rows * cs)) / 2) + padding;
+
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      let color;
+      if (grid[y][x] === 1) {
+        color = thm === 'dark' ? '#0f172a' : '#64748b';
+      } else if (grid[y][x] === 2) {
+        color = '#a855f7';
+      } else {
+        color = thm === 'dark' ? '#1e293b' : '#f8fafc';
+      }
+      ctx.fillStyle = color;
+      ctx.fillRect(offsetX + x * cs, offsetY + y * cs, cs, cs);
+    }
+  }
+
+  ctx.fillStyle = '#eab308';
+  gameState.coins.forEach(c => {
+    ctx.beginPath();
+    ctx.arc(offsetX + c[0] * cs + cs/2, offsetY + c[1] * cs + cs/2, cs/3.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+// NEW EMOJI CODE:
+  
+  // 1. Setup text alignment and size to fit perfectly inside the cell
+  ctx.font = `${cs * 0.75}px Orbit, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // 2. AI Box: 🤖 (Green replacement)
+  if (gameState.ai_pos[0] !== -1 && gameState.ai_pos[1] !== -1) {
+    ctx.fillText('🤖', offsetX + gameState.ai_pos[0] * cs + cs/2, offsetY + gameState.ai_pos[1] * cs + cs/2);
+  }
+
+  // 3. Monster Box: ☠️ (Red replacement)
+  ctx.fillText('☠️', offsetX + gameState.m_pos[0] * cs + cs/2, offsetY + gameState.m_pos[1] * cs + cs/2);
+
+  // 4. Man Box: 🙂 (Blue replacement)
+  if (gameState.h_pos[0] !== -1 && gameState.h_pos[1] !== -1) {
+    ctx.fillText('🙂', offsetX + gameState.h_pos[0] * cs + cs/2, offsetY + gameState.h_pos[1] * cs + cs/2);
+  }
+
+  ctx.fillStyle = thm === 'dark' ? '#e2e8f0' : '#1a1a1a';
+  ctx.font = '22px Orbit';
+  ctx.textAlign = 'center';
+  
+  const aiStatus = (gameState.ai_pos[0] === -1) ? "DEAD" : "ALIVE";
+  
+  ctx.fillText(`Turns: ${gameState.turns}/15`, cvs.width * 0.2, 60);
+  ctx.fillText(`Player: ${gameState.scores.h}`, cvs.width * 0.45, 60);
+  ctx.fillText(`AI: ${gameState.scores.ai}`, cvs.width * 0.7, 60);
+  
+  ctx.fillStyle = (aiStatus === "DEAD") ? '#ef4444' : '#22c55e';
+  ctx.fillText(`AI Status: ${aiStatus}`, cvs.width * 0.9, 60);
+
+  if (gameState.status !== 'playing') {
+    ctx.fillStyle = thm === 'dark' ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.7)';
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+    
+    ctx.fillStyle = gameState.status === 'win' ? '#22c55e' : '#ef4444';
+    ctx.font = '70px Anton';
+    ctx.textAlign = 'center';
+    ctx.fillText(`GAME ${gameState.status.toUpperCase()}!`, cvs.width/2, cvs.height/2);
+    
+    ctx.fillStyle = thm === 'dark' ? '#e2e8f0' : '#1a1a1a';
+    ctx.font = '25px Orbit';
+    ctx.fillText(`Press 'R' to Restart`, cvs.width/2, cvs.height/2 + 50);
+  }
+}
+
+// Controller Listeners
+window.addEventListener('keydown', (e) => {
+  // Only trigger if the game screen is actively visible
+  if (document.getElementById('game-container').style.display === 'block') {
+    
+    // Allow standard browser refreshes (Ctrl+R or Cmd+R) to pass through
+    if ((e.key === 'r' || e.key === 'R') && (e.ctrlKey || e.metaKey)) return;
+
+    // Prevent arrow keys and spacebar from scrolling the webpage down
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+      e.preventDefault();
+    }
+
+    let moved = false;
+    if (['ArrowUp', 'w', 'W'].includes(e.key)) { sendMove('up'); moved = true; }
+    if (['ArrowDown', 's', 'S'].includes(e.key)) { sendMove('down'); moved = true; }
+    if (['ArrowLeft', 'a', 'A'].includes(e.key)) { sendMove('left'); moved = true; }
+    if (['ArrowRight', 'd', 'D'].includes(e.key)) { sendMove('right'); moved = true; }
+    
+    // Handle move sounds
+    if (moved && gameState && gameState.status === 'playing') {
+       let moveClone = moveAudio.cloneNode();
+       moveClone.volume = parseFloat(document.getElementById('sfx-vol').value);
+       moveClone.play().catch(()=>{});
+    }
+
+    // Perfectly isolated Reset key logic
+    if (['r', 'R'].includes(e.key)) {
+      e.preventDefault(); // Stop 'r' from typing into hidden inputs if any exist
+      resetGame();
+    }
+  }
+});
+</script>
+</body>
+</html>
