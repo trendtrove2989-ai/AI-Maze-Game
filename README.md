@@ -173,7 +173,7 @@
 <!-- FOOTER -->
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=1&height=100&section=footer" width="100%"/>
 <br>
-<b>Developed by <a href="https://github.com/your-username" style="color: #38bdf8; text-decoration: none;">Huzaifa Waqar</a></b> <br>
+<b>Developed by <a href="https://github.com/your-username" style="color: #38bdf8; text-decoration: none;">Ahmad Farooq</a></b> <br>
 <i>BS Artificial Intelligence | FAST-NUCES</i>
 
 </div>
